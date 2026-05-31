@@ -106,6 +106,8 @@
 #define SYSTEM_CMD_SET_RAW_MODE 41
 #define SYSTEM_CMD_TCP_RECV_NB 42
 #define SYSTEM_CMD_YIELD 43
+#define SYSTEM_CMD_TCP_LISTEN 44
+#define SYSTEM_CMD_TCP_ACCEPT 45
 #define SYSTEM_CMD_SET_RESOLUTION 47
 #define SYSTEM_CMD_PARALLEL_RUN 50
 #define SYSTEM_CMD_TTY_CREATE 60
@@ -287,6 +289,8 @@ uint64_t sys_get_shell_config(const char *key);
 void sys_set_text_color(uint32_t color);
 
 int sys_tcp_connect(const net_ipv4_address_t *ip, uint16_t port);
+int sys_tcp_listen(uint16_t port);
+int sys_tcp_accept(void);
 int sys_tcp_send(const void *data, size_t len);
 int sys_tcp_recv(void *buf, size_t max_len);
 int sys_tcp_recv_nb(void *buf, size_t max_len);

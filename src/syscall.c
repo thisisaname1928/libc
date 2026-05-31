@@ -321,6 +321,14 @@ int sys_tcp_connect(const net_ipv4_address_t *ip, uint16_t port) {
     return (int)syscall3(SYS_SYSTEM, SYSTEM_CMD_TCP_CONNECT, (uint64_t)ip, (uint64_t)port);
 }
 
+int sys_tcp_listen(uint16_t port) {
+    return (int)syscall3(SYS_SYSTEM, SYSTEM_CMD_TCP_LISTEN, (uint64_t)port, 0);
+}
+
+int sys_tcp_accept(void) {
+    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_TCP_ACCEPT, 0);
+}
+
 int sys_tcp_send(const void *data, size_t len) {
     return (int)syscall3(SYS_SYSTEM, SYSTEM_CMD_TCP_SEND, (uint64_t)data, (uint64_t)len);
 }
