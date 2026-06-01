@@ -23,5 +23,6 @@ extern int errno;
 #define EBUSY 16
 #define ESPIPE 29
 #define ENOSYS 38
+#define EOVERFLOW 75
 
 #endif
