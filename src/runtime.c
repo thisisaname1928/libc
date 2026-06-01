@@ -83,7 +83,6 @@ __attribute__((weak)) int system(const char *command) {
 }
 
 __attribute__((weak)) char *getenv(const char *name) {
-    const char *cfg;
     static char cwd_buf[256];
     if (!name || name[0] == '\0') {
         return NULL;
@@ -101,10 +100,6 @@ __attribute__((weak)) char *getenv(const char *name) {
     if (_b_streq(name, "SHELL")) return "/bin/bsh";
     if (_b_streq(name, "TERM")) return "boredos";
 
-    cfg = (const char *)(uintptr_t)sys_get_shell_config(name);
-    if ((uintptr_t)cfg > 0x10000ULL) {
-        return (char *)cfg;
-    }
     return NULL;
 }
 

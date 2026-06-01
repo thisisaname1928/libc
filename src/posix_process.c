@@ -109,8 +109,9 @@ static int _b_exec_common(const char *path, char *const argv[]) {
         return -1;
     }
 
-    if (sys_exec(exec_path, args[0] ? args : NULL) < 0) {
-        errno = EIO;
+    int res = sys_exec(exec_path, args[0] ? args : NULL);
+    if (res < 0) {
+        errno = -res;
         return -1;
     }
 
