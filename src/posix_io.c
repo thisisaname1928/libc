@@ -595,16 +595,16 @@ __attribute__((weak)) int dup2(int oldfd, int newfd) {
         return -1;
     }
 
+    // If newfd was already open in libc, we need to close/replace its handle first
+    if (g_fd_table[newfd] && !_b_is_stdio_handle(g_fd_table[newfd])) {
+        close(newfd);
+    }
+
     // Force kernel to update its FD table for the new slot
     kfd_res = sys_dup2(src->kernel_fd, newfd);
     if (kfd_res < 0) {
         errno = EBADF;
         return -1;
-    }
-
-    // If newfd was already open in libc, we need to replace its handle
-    if (g_fd_table[newfd] && !_b_is_stdio_handle(g_fd_table[newfd])) {
-        close(newfd);
     }
 
     // If it's a stdio handle, we update it in place
