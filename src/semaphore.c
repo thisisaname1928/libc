@@ -6,7 +6,7 @@ static inline void cpu_yield(void) {
   __asm__ __volatile__("pause" ::: "memory");
 }
 
-void internal_lock(sem_t *sem) {
+static void internal_lock(sem_t *sem) {
   // do a atomic set
   while (__atomic_test_and_set(&sem->internal_spinlock, __ATOMIC_ACQUIRE)) {
     cpu_yield();
@@ -14,7 +14,7 @@ void internal_lock(sem_t *sem) {
   return;
 }
 
-void internal_unlock(sem_t *sem) {
+static void internal_unlock(sem_t *sem) {
   __atomic_clear(&sem->internal_spinlock, __ATOMIC_RELEASE);
 }
 
