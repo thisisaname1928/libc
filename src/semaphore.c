@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Quoc Trung (https://github.com/thisisaname1928)
+// This software is released under the GNU General Public License v3.0. See
+// LICENSE file for details. This header needs to maintain in any file it is
+// present in, as per the GPL license terms.
 #include <errno.h>
 #include <semaphore.h>
 #include <stdatomic.h>
@@ -74,16 +78,14 @@ int sem_wait(sem_t *sem) {
     // got some sleep
     atomic_fetch_add_explicit(&sem->waiter, 1, memory_order_relaxed);
 
-    int32_t result = sys_futex((uint32_t *)&sem->value, FUTEX_WAIT, 0);
+    int result = sys_futex((uint32_t *)&sem->value, FUTEX_WAIT, 0);
     if (result != 0) {
       atomic_fetch_sub_explicit(&sem->waiter, 1, memory_order_relaxed);
-      if (errno == EINTR) { // got an interrupt from kernel, it could be Ctrl +
-                            // C or somethings so just return
-        errno = EINTR;
-        return -1;
-      }
 
-      continue; // if not EINTR, try again
+      if (errno == EAGAIN) // only retry if futex retrun EAGAIN
+        continue;
+
+      return -1; // leave the same errno from kernel for caller
     }
 
     atomic_fetch_sub_explicit(&sem->waiter, 1, memory_order_relaxed);

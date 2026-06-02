@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Quoc Trung (https://github.com/thisisaname1928)
+// This software is released under the GNU General Public License v3.0. See
+// LICENSE file for details. This header needs to maintain in any file it is
+// present in, as per the GPL license terms.
 #ifndef SEMAPHORE_H
 #define SEMAPHORE_H
 
@@ -12,9 +16,9 @@
  */
 
 typedef struct {
-  atomic_uint_least32_t value;
+  _Atomic uint32_t value;
   int32_t pshared;
-  atomic_uint_least32_t waiter;
+  _Atomic uint32_t waiter;
 } sem_t;
 
 #define SEM_FAILED ((sem_t *)-1)
