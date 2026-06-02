@@ -2,41 +2,25 @@
 #include <semaphore.h>
 #include <stdatomic.h>
 #include <stdbool.h>
-#include <stdlib.h>
+#include <stdint.h>
+#include <syscall.h>
 
-static inline void do_a_yield(void) {
-#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) ||             \
-    defined(_M_IX86)
-  __asm__ __volatile__("pause" ::: "memory");
-#elif defined(__aarch64__) || defined(_M_ARM64)
-  __asm__ __volatile__("yield" ::: "memory");
-#else
-  sleep(20); // just sleep a little bit on strange arch
+#ifdef __linux__
+#include <linux/futex.h>
+#include <sys/syscall.h>
 #endif
-}
 
-static void internal_lock(sem_t *sem) {
-  // do a atomic set
-  while (atomic_flag_test_and_set_explicit(&sem->internal_spinlock,
-                                           memory_order_acquire)) {
-    do_a_yield();
-  }
-  return;
-}
-
-static void internal_unlock(sem_t *sem) {
-  atomic_flag_clear_explicit(&sem->internal_spinlock, memory_order_release);
-}
-
+// POSIX sempahore won't care if programmer make an double init or using after
+// destroy, so I remove the SEM_INIT_MAGIC
 int sem_init(sem_t *sem, int pshared, unsigned int val) {
   if (!sem) {
     errno = EINVAL;
     return -1;
   }
 
-  // sem_t already init
-  if (sem->sem_init_magic == SEM_INIT_MAGIC) {
-    errno = EBUSY;
+  // I'll not implement this...
+  if (pshared == 1) {
+    errno = ENOSYS;
     return -1;
   }
 
@@ -45,17 +29,9 @@ int sem_init(sem_t *sem, int pshared, unsigned int val) {
     return -1;
   }
 
-  sem->value = val;
-  sem->initial_value = val;
+  atomic_store(&sem->value, val);
+  sem->waiter = 0;
   sem->pshared = pshared;
-  sem->sem_init_magic = SEM_INIT_MAGIC; // use this magic to avoid double init or doing some stuffs on a uninitialized semaphore
-  atomic_flag_clear_explicit(&sem->internal_spinlock, memory_order_release);
-
-  // I'll not implement this...
-  if (pshared == 1) {
-    errno = ENOSYS;
-    return -1;
-  }
 
   return 0;
 }
@@ -66,17 +42,7 @@ int sem_destroy(sem_t *sem) {
     return -1;
   }
 
-  // just set the init magic to zero
-  if (sem->sem_init_magic != SEM_INIT_MAGIC) {
-    errno = EINVAL;
-    return -1;
-  }
-
-    // wait for permission to modify the semaphore
-  internal_lock(sem);
-  sem->sem_init_magic = 0;
-  sem->value = 0;
-  internal_unlock(sem);
+  // POSIX implementation dont care if caller destroy a running semaphore
 
   return 0;
 }
@@ -87,22 +53,45 @@ int sem_wait(sem_t *sem) {
     return -1;
   }
 
-  if (sem->sem_init_magic != SEM_INIT_MAGIC) {
-    errno = EINVAL;
-    return -1;
-  }
-
   // wait for resource
   while (true) {
-    internal_lock(sem);
-    if (sem->value != 0) { // find a free spot
-      sem->value--;
-      internal_unlock(sem);
-      return 0;
+    uint32_t cur_sem_val =
+        atomic_load_explicit(&sem->value, memory_order_acquire);
+
+    if (cur_sem_val > 0) {
+      if (atomic_compare_exchange_strong_explicit(
+              &sem->value, &cur_sem_val, cur_sem_val - 1, memory_order_acquire,
+              memory_order_relaxed)) // check if cur_sem_val is = sem->value and
+                                     // decrease it
+
+        return 0;
+      else
+        continue; // if they aren't the same, someone stole it, just try get it
+                  // again
     }
 
-    internal_unlock(sem);
-    do_a_yield(); // let cpu be relax a little bit
+    cur_sem_val = atomic_load_explicit(&sem->value, memory_order_acquire);
+    if (cur_sem_val > 0) { // double check to make sure that no sem_post() sneak
+                           // in while registering
+      continue;
+    }
+
+    // got some sleep
+    atomic_fetch_add_explicit(&sem->waiter, 1, memory_order_relaxed);
+
+    int32_t result = sys_futex((uint32_t *)&sem->value, FUTEX_WAIT, 0);
+    if (result != 0) {
+      atomic_fetch_sub_explicit(&sem->waiter, 1, memory_order_relaxed);
+      if (errno == EINTR) { // got an interrupt from kernel, it could be Ctrl +
+                            // C or somethings so just return
+        errno = EINTR;
+        return -1;
+      }
+
+      continue; // if not EINTR, try again
+    }
+
+    atomic_fetch_sub_explicit(&sem->waiter, 1, memory_order_relaxed);
   }
 
   return 0;
@@ -114,58 +103,60 @@ int sem_trywait(sem_t *sem) {
     return -1;
   }
 
-  if (sem->sem_init_magic != SEM_INIT_MAGIC) {
-    errno = EINVAL;
-    return -1;
+  uint32_t cur_sem_val =
+      atomic_load_explicit(&sem->value, memory_order_acquire);
+  while (cur_sem_val >
+         0) { // run a loop to make sure it won't give up when sem->value > 0
+    if (atomic_compare_exchange_strong_explicit(
+            &sem->value, &cur_sem_val, cur_sem_val - 1, memory_order_acquire,
+            memory_order_relaxed)) {
+      return 0;
+    }
+
+    // atomic_compare_exchange_strong refreshed cur_sem_val for us
   }
 
-    // wait for permission to modify the semaphore
-  internal_lock(sem);
-  if (sem->value == 0) {
-    errno = EAGAIN; // tell the caller that semaphore value is ran out, try again later
-    internal_unlock(sem);
-    return -1;
-  }
-
-  sem->value--;
-  internal_unlock(sem);
-  return 0;
+  errno = EAGAIN;
+  return -1;
 }
 
-// increment a semaphore
 int sem_post(sem_t *sem) {
   if (!sem) {
     errno = EINVAL;
     return -1;
   }
 
-  if (sem->sem_init_magic != SEM_INIT_MAGIC) {
-    errno = EINVAL;
-    return -1;
+  uint32_t cur_sem_val =
+      atomic_load_explicit(&sem->value, memory_order_relaxed);
+
+  while (cur_sem_val < SEM_VALUE_MAX) {
+    if (atomic_compare_exchange_strong_explicit(
+            &sem->value, &cur_sem_val, cur_sem_val + 1, memory_order_release,
+            memory_order_relaxed)) {
+
+      if (atomic_load_explicit(&sem->waiter, memory_order_relaxed) >
+          0) // only wake when waiter > 0
+
+        sys_futex((uint32_t *)&sem->value, FUTEX_WAKE, 1);
+
+      return 0;
+    }
+
+    // cur_sem_val changed while we was comparing so try again
   }
 
-  // wait for permission to modify the semaphore
-  internal_lock(sem);
-  if (sem->value < SEM_VALUE_MAX)
-    sem->value++;
-  else {
-    errno = EOVERFLOW;
-    internal_unlock(sem);
-    return -1;
-  }
-  internal_unlock(sem);
-
-  return 0;
+  errno = EOVERFLOW;
+  return -1;
 }
 
 // get the sem_t's current value
 int sem_getvalue(sem_t *restrict sem, int *v) {
-  if (!sem || !v || sem->sem_init_magic != SEM_INIT_MAGIC) {
+  if (!sem || !v) {
     errno = EINVAL;
     return -1;
   }
-  
-  *v = sem->value;
+
+  *v = (int)atomic_load_explicit(&sem->value, memory_order_acquire);
 
   return 0;
 }
@@ -177,17 +168,17 @@ sem_t *sem_open(const char *name, int oflag, ...) {
   return SEM_FAILED;
 }
 
-int sem_timedwait(sem_t *restrict sem, const struct timespec ts) {
+int sem_timedwait(sem_t *restrict sem, const struct timespec *ts) {
   errno = ENOSYS;
   return -1;
 }
 
-int sem_unlink(const char * name) {
+int sem_unlink(const char *name) {
   errno = ENOSYS;
   return -1;
 }
 
-int sem_close(sem_t * sem) { 
+int sem_close(sem_t *sem) {
   errno = ENOSYS;
   return -1;
 }
