@@ -5,11 +5,6 @@
 #include <stdint.h>
 #include <syscall.h>
 
-#ifdef __linux__
-#include <linux/futex.h>
-#include <sys/syscall.h>
-#endif
-
 // POSIX sempahore won't care if programmer make an double init or using after
 // destroy, so I remove the SEM_INIT_MAGIC
 int sem_init(sem_t *sem, int pshared, unsigned int val) {
