@@ -60,7 +60,8 @@ enum {
     FS_CMD_UNIX_SOCKET_SEND = 30,
     FS_CMD_UNIX_SOCKET_RECV = 31,
     FS_CMD_UNIX_SOCKET_CLOSE = 32,
-    FS_CMD_UNIX_SOCKET_UNLINK = 33
+    FS_CMD_UNIX_SOCKET_UNLINK = 33,
+    FS_CMD_LIST_OFFSET = 34
 };
 
 // System Commands (via SYS_SYSTEM)
@@ -229,6 +230,7 @@ typedef struct {
 } FAT32_FileInfo;
 
 int sys_list(const char *path, FAT32_FileInfo *entries, int max_entries);
+int sys_list_offset(const char *path, FAT32_FileInfo *entries, int max_entries, int offset);
 int sys_get_file_info(const char *path, FAT32_FileInfo *info);
 
 typedef struct {

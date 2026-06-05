@@ -118,7 +118,11 @@ uint32_t sys_size(int fd) {
 }
 
 int sys_list(const char *path, FAT32_FileInfo *entries, int max_entries) {
-    return (int)syscall4(SYS_FS, FS_CMD_LIST, (uint64_t)path, (uint64_t)entries, (uint64_t)max_entries);
+    return sys_list_offset(path, entries, max_entries, 0);
+}
+
+int sys_list_offset(const char *path, FAT32_FileInfo *entries, int max_entries, int offset) {
+    return (int)syscall5(SYS_FS, FS_CMD_LIST_OFFSET, (uint64_t)path, (uint64_t)entries, (uint64_t)max_entries, (uint64_t)offset);
 }
 
 int sys_get_file_info(const char *path, FAT32_FileInfo *info) {

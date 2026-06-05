@@ -220,6 +220,10 @@ __attribute__((weak)) pid_t waitpid(pid_t pid, int *status, int options) {
         if (rc == 0 && (options & WNOHANG)) {
             return 0;
         }
+        if (rc == -2) {
+            sleep(10);
+            continue;
+        }
         if (rc < 0) {
             errno = ECHILD;
             return -1;
