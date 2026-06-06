@@ -1,3 +1,6 @@
+// Copyright (c) 2023-2026 Christiaan (chris@boreddev.nl)
+// This software is released under the GNU General Public License v3.0. See LICENSE file for details.
+// This header needs to maintain in any file it is present in, as per the GPL license terms.
 #include "sys/socket.h"
 #include "errno.h"
 #include "string.h"
@@ -39,7 +42,7 @@ int socket(int domain, int type, int protocol) {
 
     int fd = (int)syscall4(SYS_FS, FS_CMD_UNIX_SOCKET_CREATE, (uint64_t)domain, (uint64_t)type, (uint64_t)protocol);
     if (fd < 0) {
-        errno = ENOSYS;
+        errno = -fd;
         return -1;
     }
     return fd;
@@ -54,7 +57,7 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 
     int rc = (int)syscall4(SYS_FS, FS_CMD_UNIX_SOCKET_CONNECT, (uint64_t)sockfd, (uint64_t)addr, (uint64_t)addrlen);
     if (rc < 0) {
-        errno = ENOENT;
+        errno = -rc;
         return -1;
     }
     return rc;
@@ -69,7 +72,7 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 
     int rc = (int)syscall4(SYS_FS, FS_CMD_UNIX_SOCKET_BIND, (uint64_t)sockfd, (uint64_t)addr, (uint64_t)addrlen);
     if (rc < 0) {
-        errno = EINVAL;
+        errno = -rc;
         return -1;
     }
     return rc;
@@ -78,7 +81,7 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 int listen(int sockfd, int backlog) {
     int rc = (int)syscall3(SYS_FS, FS_CMD_UNIX_SOCKET_LISTEN, (uint64_t)sockfd, (uint64_t)backlog);
     if (rc < 0) {
-        errno = ENOTSUP;
+        errno = -rc;
         return -1;
     }
     return rc;
@@ -96,7 +99,7 @@ int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
     }
 
     if (rc < 0) {
-        errno = EAGAIN;
+        errno = -rc;
         return -1;
     }
     return rc;
@@ -106,7 +109,7 @@ ssize_t send(int sockfd, const void *buf, size_t len, int flags) {
     (void)flags;
     int rc = sys_write(sockfd, (const char *)buf, (int)len);
     if (rc < 0) {
-        errno = EPIPE;
+        errno = -rc;
         return -1;
     }
     return rc;
@@ -116,7 +119,7 @@ ssize_t recv(int sockfd, void *buf, size_t len, int flags) {
     (void)flags;
     int rc = sys_read(sockfd, buf, (uint32_t)len);
     if (rc < 0) {
-        errno = EAGAIN;
+        errno = -rc;
         return -1;
     }
     return rc;

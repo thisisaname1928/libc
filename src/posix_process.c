@@ -1,3 +1,6 @@
+// Copyright (c) 2023-2026 Christiaan (chris@boreddev.nl)
+// This software is released under the GNU General Public License v3.0. See LICENSE file for details.
+// This header needs to maintain in any file it is present in, as per the GPL license terms.
 #include <stdarg.h>
 #include <stddef.h>
 
@@ -109,8 +112,9 @@ static int _b_exec_common(const char *path, char *const argv[]) {
         return -1;
     }
 
-    if (sys_exec(exec_path, args[0] ? args : NULL) < 0) {
-        errno = EIO;
+    int res = sys_exec(exec_path, args[0] ? args : NULL);
+    if (res < 0) {
+        errno = -res;
         return -1;
     }
 
@@ -215,6 +219,10 @@ __attribute__((weak)) pid_t waitpid(pid_t pid, int *status, int options) {
         }
         if (rc == 0 && (options & WNOHANG)) {
             return 0;
+        }
+        if (rc == -2) {
+            sleep(10);
+            continue;
         }
         if (rc < 0) {
             errno = ECHILD;

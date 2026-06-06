@@ -1,3 +1,6 @@
+// Copyright (c) 2023-2026 Christiaan (chris@boreddev.nl)
+// This software is released under the GNU General Public License v3.0. See LICENSE file for details.
+// This header needs to maintain in any file it is present in, as per the GPL license terms.
 #include "stdlib.h"
 char **environ = 0;
 #include "string.h"
@@ -83,7 +86,6 @@ __attribute__((weak)) int system(const char *command) {
 }
 
 __attribute__((weak)) char *getenv(const char *name) {
-    const char *cfg;
     static char cwd_buf[256];
     if (!name || name[0] == '\0') {
         return NULL;
@@ -101,10 +103,6 @@ __attribute__((weak)) char *getenv(const char *name) {
     if (_b_streq(name, "SHELL")) return "/bin/bsh";
     if (_b_streq(name, "TERM")) return "boredos";
 
-    cfg = (const char *)(uintptr_t)sys_get_shell_config(name);
-    if ((uintptr_t)cfg > 0x10000ULL) {
-        return (char *)cfg;
-    }
     return NULL;
 }
 

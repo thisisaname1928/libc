@@ -1,3 +1,6 @@
+// Copyright (c) 2023-2026 Christiaan (chris@boreddev.nl)
+// This software is released under the GNU General Public License v3.0. See LICENSE file for details.
+// This header needs to maintain in any file it is present in, as per the GPL license terms.
 #include "string.h"
 #include "errno.h"
 #include "ctype.h"
@@ -155,4 +158,55 @@ __attribute__((weak)) char *strdup(const char *s) {
     }
     memcpy(dup, s, len);
     return dup;
+}
+
+__attribute__((weak)) size_t strnlen(const char *s, size_t maxlen) {
+    size_t len;
+    for (len = 0; len < maxlen; len++) {
+        if (s[len] == '\0') {
+            break;
+        }
+    }
+    return len;
+}
+
+__attribute__((weak)) char *strndup(const char *s, size_t n) {
+    size_t len = strnlen(s, n);
+    char *dup = (char *)malloc(len + 1);
+    if (!dup) {
+        errno = ENOMEM;
+        return NULL;
+    }
+    memcpy(dup, s, len);
+    dup[len] = '\0';
+    return dup;
+}
+
+__attribute__((weak)) char *strtok_r(char *str, const char *delim, char **saveptr) {
+    char *end;
+    if (str == NULL) {
+        str = *saveptr;
+    }
+    if (str == NULL || *str == '\0') {
+        *saveptr = NULL;
+        return NULL;
+    }
+    str += strspn(str, delim);
+    if (*str == '\0') {
+        *saveptr = NULL;
+        return NULL;
+    }
+    end = str + strcspn(str, delim);
+    if (*end == '\0') {
+        *saveptr = NULL;
+    } else {
+        *end = '\0';
+        *saveptr = end + 1;
+    }
+    return str;
+}
+
+__attribute__((weak)) char *strtok(char *str, const char *delim) {
+    static char *olds;
+    return strtok_r(str, delim, &olds);
 }

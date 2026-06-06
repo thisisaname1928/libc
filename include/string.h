@@ -1,3 +1,6 @@
+// Copyright (c) 2023-2026 Christiaan (chris@boreddev.nl)
+// This software is released under the GNU General Public License v3.0. See LICENSE file for details.
+// This header needs to maintain in any file it is present in, as per the GPL license terms.
 #ifndef BOREDOS_LIBC_STRING_H
 #define BOREDOS_LIBC_STRING_H
 
@@ -25,6 +28,10 @@ char* strncpy(char *dest, const char *src, size_t n);
 char* strcat(char *dest, const char *src);
 char* strncat(char *dest, const char *src, size_t n);
 char *strdup(const char *s);
+char *strndup(const char *s, size_t n);
+size_t strnlen(const char *s, size_t maxlen);
+char *strtok(char *str, const char *delim);
+char *strtok_r(char *str, const char *delim, char **saveptr);
 char *strerror(int errnum);
 
 #endif
