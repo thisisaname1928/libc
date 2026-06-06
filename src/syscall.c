@@ -1,7 +1,7 @@
+// Copyright (c) 2023-2026 Christiaan (chris@boreddev.nl)
+// This software is released under the GNU General Public License v3.0. See LICENSE file for details.
+// This header needs to maintain in any file it is present in, as per the GPL license terms.
 #include "syscall.h"
-
-
-
 uint64_t syscall0(uint64_t sys_num) {
     uint64_t ret;
     asm volatile("int $0x80"
@@ -118,7 +118,11 @@ uint32_t sys_size(int fd) {
 }
 
 int sys_list(const char *path, FAT32_FileInfo *entries, int max_entries) {
-    return (int)syscall4(SYS_FS, FS_CMD_LIST, (uint64_t)path, (uint64_t)entries, (uint64_t)max_entries);
+    return sys_list_offset(path, entries, max_entries, 0);
+}
+
+int sys_list_offset(const char *path, FAT32_FileInfo *entries, int max_entries, int offset) {
+    return (int)syscall5(SYS_FS, FS_CMD_LIST_OFFSET, (uint64_t)path, (uint64_t)entries, (uint64_t)max_entries, (uint64_t)offset);
 }
 
 int sys_get_file_info(const char *path, FAT32_FileInfo *info) {
@@ -247,50 +251,18 @@ int sys_tty_destroy(int tty_id) {
     return (int)syscall3(SYS_SYSTEM, SYSTEM_CMD_TTY_DESTROY, (uint64_t)tty_id, 0);
 }
 
+int sys_pty_create(void) {
+    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_PTY_CREATE, 0);
+}
+
+int sys_pty_destroy(int pty_id) {
+    return (int)syscall3(SYS_SYSTEM, SYSTEM_CMD_PTY_DESTROY, (uint64_t)pty_id, 0);
+}
+
 void sys_kill(int pid) {
     syscall1(SYS_KILL, (uint64_t)pid);
 }
 
-// Network API implementations
-int sys_network_init(void) {
-    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_NETWORK_INIT, 0);
-}
-
-int sys_network_dhcp_acquire(void) {
-    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_NETWORK_DHCP, 0);
-}
-
-int sys_network_get_mac(net_mac_address_t *mac) {
-    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_NETWORK_GET_MAC, (uint64_t)mac);
-}
-
-int sys_network_get_nic_name(char *name_out) {
-    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_NETWORK_GET_NIC_NAME, (uint64_t)name_out);
-}
-
-int sys_network_get_ip(net_ipv4_address_t *ip) {
-    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_NETWORK_GET_IP, (uint64_t)ip);
-}
-
-int sys_network_set_ip(const net_ipv4_address_t *ip) {
-    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_NETWORK_SET_IP, (uint64_t)ip);
-}
-
-int sys_network_get_stat(int stat_type) {
-    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_NETWORK_GET_STATS, (uint64_t)stat_type);
-}
-
-int sys_get_dns_server(net_ipv4_address_t *ip) {
-    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_NETWORK_GET_DNS, (uint64_t)ip);
-}
-
-int sys_network_get_gateway(net_ipv4_address_t *ip) {
-    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_NETWORK_GET_GATEWAY, (uint64_t)ip);
-}
-
-int sys_network_get_dns(net_ipv4_address_t *ip) {
-    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_NETWORK_GET_DNS, (uint64_t)ip);
-}
 
 int sys_udp_send(const net_ipv4_address_t *dest_ip, uint16_t dest_port, uint16_t src_port, const void *data, size_t data_len) {
     uint32_t ports = (dest_port & 0xFFFF) | ((src_port & 0xFFFF) << 16);
@@ -301,17 +273,6 @@ int sys_icmp_ping(const net_ipv4_address_t *dest_ip) {
     return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_ICMP_PING, (uint64_t)dest_ip);
 }
 
-int sys_network_is_initialized(void) {
-    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_NETWORK_IS_INIT, 0);
-}
-
-int sys_network_has_ip(void) {
-    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_NETWORK_HAS_IP, 0);
-}
-
-uint64_t sys_get_shell_config(const char *key) {
-    return (uint64_t)sys_system(SYSTEM_CMD_GET_SHELL_CONFIG, (uint64_t)key, 0, 0, 0);
-}
 
 void sys_set_text_color(uint32_t color) {
     sys_system(SYSTEM_CMD_SET_TEXT_COLOR, (uint64_t)color, 0, 0, 0);
@@ -349,9 +310,7 @@ int sys_dns_lookup(const char *name, net_ipv4_address_t *out_ip) {
     return (int)syscall3(SYS_SYSTEM, SYSTEM_CMD_DNS_LOOKUP, (uint64_t)name, (uint64_t)out_ip);
 }
 
-int sys_set_dns_server(const net_ipv4_address_t *ip) {
-    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_SET_DNS, (uint64_t)ip);
-}
+
 
 void sys_network_force_unlock(void) {
     syscall2(SYS_SYSTEM, SYSTEM_CMD_NET_UNLOCK, 0);

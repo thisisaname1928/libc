@@ -1,3 +1,6 @@
+// Copyright (c) 2023-2026 Christiaan (chris@boreddev.nl)
+// This software is released under the GNU General Public License v3.0. See LICENSE file for details.
+// This header needs to maintain in any file it is present in, as per the GPL license terms.
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -110,7 +113,7 @@ __attribute__((weak)) void *mmap(void *addr, unsigned long length, int prot, int
 __attribute__((weak)) int munmap(void *addr, unsigned long length) {
     int ret = sys_munmap(addr, length);
     if (ret < 0) {
-        errno = EINVAL;
+        errno = -ret;
         return -1;
     }
     return 0;
@@ -271,7 +274,7 @@ __attribute__((weak)) int open(const char *pathname, int flags, ...) {
 
     kfd = sys_open(pathname, _b_mode_from_flags(flags));
     if (kfd < 0) {
-        errno = EIO;
+        errno = -kfd;
         return -1;
     }
 
@@ -373,7 +376,7 @@ __attribute__((weak)) ssize_t read(int fd, void *buf, size_t count) {
 
     n = sys_read(h->kernel_fd, buf, (uint32_t)count);
     if (n < 0) {
-        errno = EIO;
+        errno = -n;
         return -1;
     }
     return (ssize_t)n;
@@ -404,7 +407,7 @@ __attribute__((weak)) int ioctl(int fd, unsigned long request, ...) {
 
     int ret = sys_ioctl(h->kernel_fd, request, arg);
     if (ret < 0) {
-        errno = EIO;
+        errno = -ret;
         return -1;
     }
     return ret;
@@ -442,7 +445,7 @@ __attribute__((weak)) ssize_t write(int fd, const void *buf, size_t count) {
     }
 
     if (n < 0) {
-        errno = EIO;
+        errno = -n;
         return -1;
     }
     return (ssize_t)n;
@@ -466,8 +469,9 @@ __attribute__((weak)) off_t lseek(int fd, off_t offset, int whence) {
         return -1;
     }
 
-    if (sys_seek(h->kernel_fd, (int)offset, whence) < 0) {
-        errno = EIO;
+    int res = sys_seek(h->kernel_fd, (int)offset, whence);
+    if (res < 0) {
+        errno = -res;
         return -1;
     }
     return (off_t)sys_tell(h->kernel_fd);
@@ -595,16 +599,16 @@ __attribute__((weak)) int dup2(int oldfd, int newfd) {
         return -1;
     }
 
+    // If newfd was already open in libc, we need to close/replace its handle first
+    if (g_fd_table[newfd] && !_b_is_stdio_handle(g_fd_table[newfd])) {
+        close(newfd);
+    }
+
     // Force kernel to update its FD table for the new slot
     kfd_res = sys_dup2(src->kernel_fd, newfd);
     if (kfd_res < 0) {
-        errno = EBADF;
+        errno = -kfd_res;
         return -1;
-    }
-
-    // If newfd was already open in libc, we need to replace its handle
-    if (g_fd_table[newfd] && !_b_is_stdio_handle(g_fd_table[newfd])) {
-        close(newfd);
     }
 
     // If it's a stdio handle, we update it in place
@@ -648,8 +652,9 @@ __attribute__((weak)) int pipe(int pipefd[2]) {
         return -1;
     }
 
-    if (sys_pipe(kpipe) < 0) {
-        errno = EIO;
+    int res = sys_pipe(kpipe);
+    if (res < 0) {
+        errno = -res;
         return -1;
     }
 
@@ -715,7 +720,7 @@ __attribute__((weak)) int fcntl(int fd, int cmd, ...) {
             if (h->type == HANDLE_KERNEL_FD) {
                 int k = sys_fcntl(h->kernel_fd, cmd, 0);
                 if (k < 0) {
-                    errno = ENOSYS;
+                    errno = -k;
                     return -1;
                 }
                 h->flags = k;
@@ -726,8 +731,9 @@ __attribute__((weak)) int fcntl(int fd, int cmd, ...) {
             val = va_arg(ap, int);
             va_end(ap);
             if (h->type == HANDLE_KERNEL_FD) {
-                if (sys_fcntl(h->kernel_fd, cmd, val) < 0) {
-                    errno = ENOSYS;
+                int k = sys_fcntl(h->kernel_fd, cmd, val);
+                if (k < 0) {
+                    errno = -k;
                     return -1;
                 }
             }

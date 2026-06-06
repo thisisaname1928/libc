@@ -1,3 +1,6 @@
+// Copyright (c) 2023-2026 Christiaan (chris@boreddev.nl)
+// This software is released under the GNU General Public License v3.0. See LICENSE file for details.
+// This header needs to maintain in any file it is present in, as per the GPL license terms.
 #include "errno.h"
 #include "syscall.h"
 #include "sys/stat.h"
@@ -28,10 +31,11 @@ __attribute__((weak)) int mkdir(const char *pathname, int mode) {
         errno = EEXIST;
         return -1;
     }
-    if (sys_mkdir(pathname) == 0) {
+    int res = sys_mkdir(pathname);
+    if (res == 0) {
         return 0;
     }
-    errno = EIO;
+    errno = (res < 0) ? -res : EIO;
     return -1;
 }
 
@@ -77,7 +81,7 @@ __attribute__((weak)) int stat(const char *pathname, struct stat *statbuf) {
                 statbuf->st_blocks = (statbuf->st_size + 511) / 512;
                 sys_close(fd);
             } else {
-                errno = EIO;
+                errno = -fd;
                 return -1;
             }
         }
