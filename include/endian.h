@@ -8,8 +8,8 @@
 #include <stdint.h>
 
 // PDP_ENDIAN too old, no need to implement it
-#define __LITTLE_ENDIAN 1234
-#define __BIG_ENDIAN 4321
+#define LITTLE_ENDIAN 1234
+#define BIG_ENDIAN 4321
 
 #if defined(__BYTE_ORDER__)
 #define __LIBC_BYTE_ORDER __BYTE_ORDER__
@@ -20,9 +20,9 @@
 // manually detect byte order
 #if !defined(__BYTE_ORDER__) && !defined(__BYTE_ORDER)
 #if defined(__x86_64__) || defined(__i386__) || defined(_M_IX86)
-#define __LIBC_BYTE_ORDER __LITTLE_ENDIAN
+#define __LIBC_BYTE_ORDER LITTLE_ENDIAN
 #elif defined(__powerpc__) || defined(__m68k__)
-#define __LIBC_BYTE_ORDER __BIG_ENDIAN
+#define __LIBC_BYTE_ORDER BIG_ENDIAN
 #else
 #error "BoredOS libc doesn't support this architecture!"
 #endif
@@ -54,7 +54,7 @@
              (((uint64_t)(x) << 56) & 0xff00000000000000ULL))
 #endif
 
-#if (__LIBC_BYTE_ORDER == __LITTLE_ENDIAN)
+#if (__LIBC_BYTE_ORDER == LITTLE_ENDIAN)
 #define be16toh(x) (__bswap16(x))
 #define be32toh(x) (__bswap32(x))
 #define be64toh(x) (__bswap64(x))
