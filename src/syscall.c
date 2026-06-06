@@ -251,6 +251,14 @@ int sys_tty_destroy(int tty_id) {
     return (int)syscall3(SYS_SYSTEM, SYSTEM_CMD_TTY_DESTROY, (uint64_t)tty_id, 0);
 }
 
+int sys_pty_create(void) {
+    return (int)syscall2(SYS_SYSTEM, SYSTEM_CMD_PTY_CREATE, 0);
+}
+
+int sys_pty_destroy(int pty_id) {
+    return (int)syscall3(SYS_SYSTEM, SYSTEM_CMD_PTY_DESTROY, (uint64_t)pty_id, 0);
+}
+
 void sys_kill(int pid) {
     syscall1(SYS_KILL, (uint64_t)pid);
 }

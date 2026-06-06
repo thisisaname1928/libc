@@ -111,7 +111,9 @@ enum {
     SYSTEM_CMD_SIGPENDING = 75,
     SYSTEM_CMD_GET_ELF_METADATA = 76,
     SYSTEM_CMD_GET_ELF_PRIMARY_IMAGE = 77,
-    SYSTEM_CMD_TTY_GET_ID = 78
+    SYSTEM_CMD_TTY_GET_ID = 78,
+    SYSTEM_CMD_PTY_CREATE = 82,
+    SYSTEM_CMD_PTY_DESTROY = 83
 };
 
 enum {
@@ -204,6 +206,8 @@ int sys_tty_get_fg(int tty_id);
 int sys_tty_kill_fg(int tty_id);
 int sys_tty_kill_all(int tty_id);
 int sys_tty_destroy(int tty_id);
+int sys_pty_create(void);
+int sys_pty_destroy(int pty_id);
 
 struct pollfd {
     int fd;
